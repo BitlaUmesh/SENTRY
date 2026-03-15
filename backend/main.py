@@ -10,7 +10,7 @@ import httpx
 from dotenv import load_dotenv
 from groq import Groq
 
-from database import init_db, insert_alert, update_human_action, get_alert_by_id, get_latest_alerts, check_duplicate_alert
+from database.database import init_db, insert_alert, update_human_action, get_alert_by_id, get_latest_alerts, check_duplicate_alert
 
 # Load environment variables from .env
 load_dotenv()
@@ -239,4 +239,4 @@ async def get_alerts():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8001, reload=True)

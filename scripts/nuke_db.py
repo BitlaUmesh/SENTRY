@@ -1,6 +1,11 @@
+import os
+import sys
 import sqlite3
 
-DB_NAME = "sentry.db"
+# Add project root to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from database.database import DB_NAME
 
 def nuke_db():
     try:
@@ -9,7 +14,7 @@ def nuke_db():
         cursor.execute("DELETE FROM security_alerts;")
         conn.commit()
         conn.close()
-        print("DATABASE CLEANED. SENTRY is now in a clean state.")
+        print(f"DATABASE CLEANED ({DB_NAME}). SENTRY is now in a clean state.")
     except Exception as e:
         print(f"Error nuking database: {e}")
 
