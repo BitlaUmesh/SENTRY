@@ -1,0 +1,4 @@
+.env
+sentry.db
+__pycache__/
+*.pyc

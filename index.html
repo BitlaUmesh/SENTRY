@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SENTRY_OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for terminal aesthetic */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb:hover { background: #39ff14; }
+        
+        .row-isolated {
+            border-left: 4px solid #00ff00 !important;
+            background-color: rgba(0, 255, 0, 0.05) !important;
+            color: #39ff14 !important;
+        }
+        
+        .row-ignored {
+            border-left: 4px solid #555 !important;
+            opacity: 0.6 !important;
+            color: #666 !important;
+        }
+
+        .row-pending-critical {
+            border-left: 8px solid #ff0000 !important;
+            box-shadow: inset 15px 0 30px -5px rgba(255, 0, 0, 0.7), 0 0 20px rgba(255, 0, 0, 0.3);
+        }
+
+        .stat-card {
+            background: #111;
+            border: 1px solid #333;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: #39ff14;
+            transform: translateY(-2px);
+        }
+
+        .heartbeat {
+            box-shadow: 0 0 8px rgba(57, 255, 20, 0.5);
+        }
+
+        .heartbeat-offline {
+            box-shadow: 0 0 8px rgba(255, 7, 58, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-[#0a0a0a] text-gray-300 font-mono min-h-screen p-8 flex flex-col">
+    <!-- Header: "SENTRY_OS - Real-Time Threat Response" -->
+    <header class="mb-6 flex justify-between items-end border-b border-gray-800 pb-4">
+        <div>
+            <h1 class="text-4xl font-bold text-[#39ff14] tracking-widest drop-shadow-[0_0_8px_rgba(57,255,20,0.5)]">SENTRY_OS</h1>
+            <p class="text-sm mt-2 uppercase text-gray-500 tracking-[0.2em]">- Real-Time Threat Response -</p>
+        </div>
+        <div class="flex items-center gap-6">
+            <!-- Requirement 4: SYSTEM HEALTH Indicator -->
+            <div id="health-indicator" class="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[#39ff14]">
+                <span class="w-2 h-2 bg-[#39ff14] rounded-full heartbeat animate-pulse"></span>
+                System Health: Stable
+            </div>
+            
+            <div id="status-badge" class="px-3 py-1.5 border min-w-[160px] justify-center border-[#39ff14] text-[#39ff14] text-xs uppercase tracking-wider rounded flex items-center gap-2 shadow-[0_0_10px_rgba(57,255,20,0.2)]">
+                <span class="w-2.5 h-2.5 bg-[#39ff14] rounded-full animate-pulse shadow-[0_0_5px_#39ff14]"></span>
+                Backend Online
+            </div>
+        </div>
+    </header>
+
+    <!-- Stats Cards Section -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="stat-card p-4 rounded border-l-4 border-blue-500">
+            <p class="text-xs uppercase text-gray-500 tracking-widest mb-1">Total Alerts</p>
+            <h2 id="stat-total" class="text-2xl font-bold text-blue-400">0</h2>
+        </div>
+        <div class="stat-card p-4 rounded border-l-4 border-[#ff0000] shadow-[0_0_20px_rgba(255,0,0,0.3)]">
+            <p class="text-xs uppercase text-gray-500 tracking-widest mb-1">High Severity</p>
+            <h2 id="stat-high" class="text-4xl font-black text-[#ff0000] drop-shadow-[0_0_20px_#ff0000]">0</h2>
+        </div>
+        <div class="stat-card p-4 rounded border-l-4 border-green-500">
+            <p class="text-xs uppercase text-gray-500 tracking-widest mb-1">Total Isolated</p>
+            <h2 id="stat-isolated" class="text-2xl font-bold text-[#39ff14]">0</h2>
+        </div>
+    </section>
+
+    <!-- Main Content: A full-width data table -->
+    <main class="flex-grow">
+        <div class="w-full border border-gray-800 bg-[#111] shadow-2xl overflow-hidden rounded">
+            <table class="w-full text-left border-collapse table-fixed">
+                <thead>
+                    <tr class="bg-[#1a1a1a] border-b border-gray-700 text-gray-400 uppercase text-xs tracking-widest">
+                        <th class="py-2.5 px-5 font-semibold w-[200px]">Timestamp</th>
+                        <th class="py-2.5 px-5 font-semibold w-[160px]">Source IP</th>
+                        <th class="py-2.5 px-5 font-semibold w-[120px]">Severity</th>
+                        <th class="py-2.5 px-5 font-semibold">AI Analysis</th>
+                        <th class="py-2.5 px-5 font-semibold w-[140px]">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="alerts-body" class="divide-y divide-gray-800 text-sm">
+                    <!-- Dynamic rendering happens here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- Data Ingestion Engine & Dynamic Rendering Logic -->
+    <script>
+        const API_ENDPOINT = "http://127.0.0.1:8001/api/v1/alerts";
+        const tableBody = document.getElementById('alerts-body');
+        const statusBadge = document.getElementById('status-badge');
+        const healthIndicator = document.getElementById('health-indicator');
+        
+        // Stats elements
+        const statTotal = document.getElementById('stat-total');
+        const statHigh = document.getElementById('stat-high');
+        const statIsolated = document.getElementById('stat-isolated');
+
+        function renderConnectionLost() {
+            statusBadge.className = "px-3 py-1.5 border min-w-[160px] justify-center border-[#ff073a] text-[#ff073a] text-xs uppercase tracking-wider rounded flex items-center gap-2 shadow-[0_0_10px_rgba(255,7,58,0.2)]";
+            statusBadge.innerHTML = `
+                <span class="w-2.5 h-2.5 bg-[#ff073a] rounded-full shadow-[0_0_5px_#ff073a]"></span>
+                Backend Offline
+            `;
+            
+            // Update Requirement 4: Health Indicator
+            healthIndicator.className = "flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[#ff073a]";
+            healthIndicator.innerHTML = `
+                <span class="w-2 h-2 bg-[#ff073a] rounded-full heartbeat-offline"></span>
+                System Health: CRITICAL
+            `;
+
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="py-6 px-5 text-center border-l-[6px] border-[#ff073a] bg-[#1a0505] text-[#ff073a] font-bold text-lg uppercase tracking-widest animate-[pulse_2s_ease-in-out_infinite]">
+                        [CRITICAL] CONNECTION LOST TO BACKEND (127.0.0.1:8001)
+                    </td>
+                </tr>
+            `;
+        }
+
+        function setConnectionOnline() {
+            if (statusBadge.classList.contains('border-[#ff073a]')) {
+                statusBadge.className = "px-3 py-1.5 border min-w-[160px] justify-center border-[#39ff14] text-[#39ff14] text-xs uppercase tracking-wider rounded flex items-center gap-2 shadow-[0_0_10px_rgba(57,255,20,0.2)]";
+                statusBadge.innerHTML = `
+                    <span class="w-2.5 h-2.5 bg-[#39ff14] rounded-full animate-pulse shadow-[0_0_5px_#39ff14]"></span>
+                    Backend Online
+                `;
+
+                healthIndicator.className = "flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-[#39ff14]";
+                healthIndicator.innerHTML = `
+                    <span class="w-2 h-2 bg-[#39ff14] rounded-full heartbeat animate-pulse"></span>
+                    System Health: Stable
+                `;
+            }
+        }
+
+        async function fetchAlertsData() {
+            try {
+                const response = await fetch(API_ENDPOINT);
+                if (!response.ok) {
+                    throw new Error("HTTP connection failed");
+                }
+                const alertsData = await response.json();
+                const dataArray = Array.isArray(alertsData) ? alertsData : (alertsData.alerts || alertsData.data || []);
+                updateStats(dataArray);
+                renderAlerts(dataArray);
+                setConnectionOnline();
+            } catch (error) {
+                console.error("Pipeline failure:", error);
+                renderConnectionLost();
+            }
+        }
+
+        function updateStats(alerts) {
+            const total = alerts.length;
+            const high = alerts.filter(a => {
+                const sev = (a.severity || "").toUpperCase();
+                return sev === "HIGH" || sev === "CRITICAL";
+            }).length;
+            const isolated = alerts.filter(a => (a.human_action || a.status || "").toUpperCase() === "ISOLATED").length;
+
+            statTotal.textContent = total;
+            statHigh.textContent = high;
+            statIsolated.textContent = isolated;
+        }
+
+        // Helper to safely create text nodes for XSS protection
+        function createSafeCell(content, className = "") {
+            const td = document.createElement('td');
+            td.className = "py-2.5 px-5 " + className;
+            td.textContent = content;
+            return td;
+        }
+
+        function renderAlerts(alerts) {
+            tableBody.innerHTML = '';
+            
+            if (alerts.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-6 px-5 text-center text-gray-600 italic tracking-widest">
+                            [ SYSTEM IDLE - WAITING FOR EVENTS ]
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            alerts.forEach(alert => {
+                const tr = document.createElement('tr');
+                
+                // State Logic (Requirement 2 & 3: Persistent Styles)
+                const status = (alert.human_action || alert.status || "PENDING").toUpperCase();
+                const severity = (alert.severity || "LOW").toUpperCase();
+                const isHighCritical = (severity === "HIGH" || severity === "CRITICAL");
+
+                let trClasses = "hover:bg-[#1a1a1a] transition-colors border-b border-gray-800 ";
+                
+                if (status === "ISOLATED") {
+                    trClasses += "row-isolated ";
+                } else if (status === "IGNORED") {
+                    trClasses += "row-ignored ";
+                } else {
+                    if (isHighCritical) {
+                        trClasses += "bg-red-500/20 animate-pulse row-pending-critical ";
+                    } else {
+                        trClasses += "border-l-4 border-gray-800 ";
+                    }
+                }
+                
+                tr.className = trClasses;
+
+                // Formatting timestamp
+                let timestamp = alert.timestamp;
+                try {
+                    if (timestamp) {
+                        timestamp = new Date(alert.timestamp).toISOString().replace('T', ' ').substring(0, 19) + 'Z';
+                    }
+                } catch(e) {}
+
+                // Requirement 1: XSS Protection (using textContent via helper)
+                
+                // Column 1: Timestamp
+                tr.appendChild(createSafeCell(timestamp || "N/A", "whitespace-nowrap opacity-80"));
+                
+                // Column 2: IP
+                const ipCell = createSafeCell(alert.source_ip || "N/A", "whitespace-nowrap " + (status === 'PENDING' ? (isHighCritical ? 'text-[#ff0000] font-bold' : 'text-[#39ff14]') : ''));
+                tr.appendChild(ipCell);
+                
+                // Column 3: Severity
+                const severityCell = document.createElement('td');
+                severityCell.className = "py-2.5 px-5 whitespace-nowrap";
+                if (status === "ISOLATED" || status === "IGNORED") {
+                    severityCell.textContent = severity;
+                } else {
+                    if (severity === "CRITICAL") {
+                        severityCell.innerHTML = `<span class="text-[#ff0000] font-black drop-shadow-[0_0_20px_#ff0000] text-xl animate-pulse inline-block">${severity}</span>`;
+                    } else if (severity === "HIGH") {
+                        severityCell.innerHTML = `<span class="text-[#ff0000] border-2 border-[#ff0000] font-black px-3 py-1 rounded text-sm drop-shadow-[0_0_10px_#ff0000]">${severity}</span>`;
+                    } else if (severity === "MEDIUM") {
+                        severityCell.innerHTML = `<span class="text-yellow-500 font-bold">${severity}</span>`;
+                    } else {
+                        severityCell.textContent = severity;
+                    }
+                }
+                tr.appendChild(severityCell);
+
+                // Column 4: AI Analysis + Fallback
+                const analysisCell = document.createElement('td');
+                analysisCell.className = "py-2.5 px-5 whitespace-pre-wrap break-words leading-relaxed";
+                
+                let rawAnalysis = alert.ai_analysis;
+                let displayAnalysis = "";
+                let isFallback = false;
+
+                if (rawAnalysis && rawAnalysis !== "{}" && !rawAnalysis.includes('"error":')) {
+                    try {
+                        let parsed = JSON.parse(rawAnalysis);
+                        let tactic = parsed.mitre_tactic || parsed.tactic || "";
+                        let summary = parsed.summary || parsed.ai_summary || "";
+                        
+                        if (tactic && summary && tactic.toLowerCase() !== "unknown") {
+                            // Safe injection using Template & textContent
+                            const strong = document.createElement('strong');
+                            strong.textContent = `[${tactic}]`;
+                            if (isHighCritical && status === "PENDING") strong.className = "text-[#ff0000]";
+                            analysisCell.appendChild(strong);
+                            analysisCell.appendChild(document.createTextNode(`: ${summary}`));
+                        } else {
+                            isFallback = true;
+                        }
+                    } catch(e) {
+                        if (rawAnalysis.toLowerCase() !== "unknown" && rawAnalysis.trim() !== "") {
+                            analysisCell.textContent = rawAnalysis;
+                        } else {
+                            isFallback = true;
+                        }
+                    }
+                } else {
+                    isFallback = true;
+                }
+
+                if (isFallback) {
+                    const label = document.createElement('span');
+                    label.className = "text-gray-500 italic";
+                    label.textContent = "RAW PAYLOAD: ";
+                    analysisCell.appendChild(label);
+                    
+                    const code = document.createElement('code');
+                    code.className = "text-xs ml-2";
+                    code.textContent = alert.raw_payload || "N/A";
+                    analysisCell.appendChild(code);
+                }
+                tr.appendChild(analysisCell);
+
+                // Column 5: Status
+                const statusCell = document.createElement('td');
+                statusCell.className = "py-2.5 px-5 whitespace-nowrap uppercase font-bold";
+                if (status === "ISOLATED") {
+                    statusCell.innerHTML = `<span class="underline">ISOLATED</span>`;
+                } else if (status === "IGNORED") {
+                    statusCell.innerHTML = `<span class="italic font-normal">IGNORED</span>`;
+                } else {
+                    statusCell.textContent = status;
+                    if (isHighCritical) statusCell.className += " text-[#ff0000] animate-pulse";
+                }
+                tr.appendChild(statusCell);
+
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Initialize: run immediately on load, then poll exactly every 3000ms
+        fetchAlertsData();
+        setInterval(fetchAlertsData, 3000);
+    </script>
+</body>
+</html>
