@@ -1,6 +1,6 @@
-# SENTRY_OS (Local SOAR System)
+# SENTRY (Local SOAR Framework)
 
-SENTRY_OS is an AI-powered local Security Orchestration, Automation, and Response (SOAR) platform. Designed with a sleek, cyberpunk-inspired terminal aesthetic, it provides real-time threat analysis, network monitoring, and rapid human-in-the-loop incident response directly via Telegram.
+SENTRY is an AI-powered local Security Orchestration, Automation, and Response (SOAR) framework. Designed with a sleek, cyberpunk-inspired terminal aesthetic, it provides real-time threat analysis, network monitoring, and rapid human-in-the-loop incident response directly via Telegram.
 
 ## 🚀 Key Features
 
@@ -75,7 +75,7 @@ Simply open `frontend/index.html` in your preferred modern web browser.
 
 ## 🧪 Testing & Demonstration
 
-To see SENTRY_OS in action without waiting for real alerts, you can use the included demographic seeding scripts:
+To see SENTRY in action without waiting for real alerts, you can use the included demographic seeding scripts:
 
 - **Seed Demo Alerts:** 
   ```bash
@@ -101,4 +101,4 @@ To see SENTRY_OS in action without waiting for real alerts, you can use the incl
 
 ## 🛡️ License & Disclaimer
 
-SENTRY_OS is developed for educational and demonstration purposes. Ensure you have proper authorization before deploying automated containment or isolation actions in a production environment.
+SENTRY is developed for educational and demonstration purposes. Ensure you have proper authorization before deploying automated containment or isolation actions in a production environment.
